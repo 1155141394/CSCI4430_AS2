@@ -61,6 +61,7 @@ int main(int argc, char* argv[]){
         perror("socket creation failed");
         exit(1);
     }
+    
     // connect to the video server
     struct hostent *server = gethostbyname(ip);
     memset(&client_addr, 0, sizeof(client_addr));
@@ -117,11 +118,29 @@ int main(int argc, char* argv[]){
             }
             if (valread == 0){
                 // somebody disconnect
-                close client_socket;
+                close(client_socket);
                 client_sockets[i] = 0;
             }
             else{
                 // process the http request
+                if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+                        perror("proxy send to server failed");
+                        exit(EXIT_FAILURE);
+                    }
+                // 从目标服务器接收HTTP响应并发送回客户端
+                memset(buffer, 0, MAX_BUFFER_SIZE);
+
+                if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0) < 0) {
+                    perror("proxy recv failed");
+                    exit(EXIT_FAILURE);
+                }
+
+                if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+                        perror("proxy send back to client failed");
+                        exit(EXIT_FAILURE);
+                }
+                
+                
 
             }
         }
