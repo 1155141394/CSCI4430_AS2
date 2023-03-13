@@ -130,10 +130,32 @@ int main(int argc, char* argv[]){
                 // 从目标服务器接收HTTP响应并发送回客户端
                 memset(buffer, 0, MAX_BUFFER_SIZE);
 
-                if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0) < 0) {
-                    perror("proxy recv failed");
-                    exit(EXIT_FAILURE);
+                   time_t start_t, end_t;
+                int received = 0,recvbytes = 0;
+                double rate = 0;
+                while(1){
+                    time(&start_t);
+                    if((recvbytes = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0)) == -1) {//接收客户端的请求
+                        perror("recv");
+                        return -1;
+                    }
+                    time(&end_t);
+                    recvbytes /= 1000;
+                    double total_t = difftime(end_t,start_t);
+                    if(rate == 0){
+                        rate = recvbytes*8/(1000*total_t);
+                    }else{
+                        rate = alpha*(recvbytes*8/(1000*total_t)) + (1 - alpha) * rate;
+                    }
+                    
+                    printf("Thoughput=%.3f Mbps\n",rate);
+
+                    if(recvbytes == 0){
+                        break;
+                    }
                 }
+                
+                
 
                 if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
                         perror("proxy send back to client failed");
