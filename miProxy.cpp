@@ -18,6 +18,54 @@
 #define MAX_CLIENTS 10
 #define MAX_BUFFER_SIZE 2048
 #define PORT 80
+#define MAX_REQUEST_LINE_LENGTH 1024
+
+char* get_request_line(char* request) {
+    char* end_of_request_line;
+    static char request_line[MAX_REQUEST_LINE_LENGTH];
+
+    // 获取请求行的结束位置
+    end_of_request_line = strstr(request, "\r\n");
+
+    if (end_of_request_line == NULL) {
+        return NULL;
+    }
+
+    // 计算请求行的长度
+    int request_line_length = end_of_request_line - request + strlen("\r\n");
+
+    if (request_line_length >= MAX_REQUEST_LINE_LENGTH) {
+        return NULL;
+    }
+
+    // 复制请求行到 request_line 变量中
+    strncpy(request_line, request, request_line_length);
+//    request_line[request_line_length] = '\0';
+
+    return request_line;
+}
+
+char* get_rest_request(char* request) {
+    char* end_of_request_line;
+    static char request_rest[MAX_REQUEST_LINE_LENGTH];
+
+    // 获取请求行的结束位置
+    end_of_request_line = strstr(request, "\r\n");
+
+    if (end_of_request_line == NULL) {
+        return NULL;
+    }
+
+    // 计算请求行的长度
+    int request_line_length = end_of_request_line - request + strlen("\r\n");
+
+    // 将剩余请求中内容复制到新的字符串
+    for(int i = request_line_length; i < strlen(request); i++) {
+        request_rest[i-request_line_length] = request[i];
+    }
+    request_rest[strlen(request)-request_line_length] = '\0';
+    return request_rest;
+}
 
 int main(int argc, char* argv[]){
     // read all the info from command line
@@ -56,7 +104,7 @@ int main(int argc, char* argv[]){
         perror("listen failed\n");
         exit(1);
     }
-    printf("Listen on port %d", listen_port);
+    printf("Listen on port %d\n", listen_port);
     // create proxy client socket
     if((proxy_client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         perror("socket creation failed");
@@ -98,7 +146,8 @@ int main(int argc, char* argv[]){
         // if something happened to server socket, accept the connection
         if(FD_ISSET(proxy_server_socket, &readfds)){
             int new_socket;
-            if ((new_socket = accept(proxy_server_socket, (struct sockaddr*)&server_addr, (socklen_t*)sizeof(server_addr))) < 0){
+            socklen_t server_addr_len = sizeof(server_addr);
+            if ((new_socket = accept(proxy_server_socket, (struct sockaddr*)&server_addr, & server_addr_len)) < 0){
                 perror("accept error");
                 exit(EXIT_FAILURE);
             }
@@ -116,86 +165,92 @@ int main(int argc, char* argv[]){
         // else it's some IO operation on a client socket
         for (int i = 0; i < MAX_CLIENTS; i++){
             int client_socket = client_sockets[i];
-            if (client_socket != 0 && FD_ISSET(client_socket, &readfds)){
-                valread = recv(client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
-            }
-            if (valread == 0){
-                // somebody disconnect
-                close(client_socket);
-                client_sockets[i] = 0;
-                tps_cur[i] = 0;
-            }
-            else{
-//                // parse the http request
-//                char *request_lines = strtok(buffer, "\r\n");
-//
-//                // make change to the http request
-//                if (){
-//                    // if f4m existed, make change to url and send two request to server
-//
-//                }
-//                else if (){
-//                    // if chunk request exists
-//                }
-//                else {
-//                    // direct the request to the server directly
-//                    if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
-//                        perror("proxy send to server failed");
-//                        exit(EXIT_FAILURE);
-//                    }
-//                    // receive data from server
-//                    memset(buffer, 0, MAX_BUFFER_SIZE);
-//                    if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
-//                        perror("proxy receive chunks from server failed");
-//                        exit(EXIT_FAILURE);
-//                    }
-//                    // direct the chunk to client
-//                    if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
-//                        perror("proxy send to server failed");
-//                        exit(EXIT_FAILURE);
-//                    }
-//                    memset(buffer, 0, MAX_BUFFER_SIZE);
-//                }
-                // send the http request
-                if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+            if (client_socket != 0 && FD_ISSET(client_socket, &readfds)) {
+                valread = read(client_socket, buffer, MAX_BUFFER_SIZE);
+                printf("%s\n", buffer);
+
+                if (valread == 0){
+                    // somebody disconnect
+                    close(client_socket);
+                    client_sockets[i] = 0;
+                    tps_cur[i] = 0;
+                }
+                else {
+                    // parse the http request
+                    char* request_line = get_request_line(buffer);
+                    char* request_rest = get_rest_request(buffer);
+                    char method[100];
+                    char url[100];
+                    char version[100];
+                    sscanf(request_line, "%s %s %s\r\n", method, url, version);
+                    // make change to the http request
+                    if (strstr(url, "big_buck_bunny")) {
+                        // if f4m existed, make change to url and send two request to server
+
+                    }
+                    else if (strstr(url, )) {
+                        // if chunk request exists
+
+                    }
+                    else {
+                        // direct the request to the server directly
+                        if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+                            perror("proxy send to server failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        // receive data from server
+                        memset(buffer, 0, MAX_BUFFER_SIZE);
+                        if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
+                            perror("proxy receive chunks from server failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        // direct the chunk to client
+                        if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+                            perror("proxy send to server failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        memset(buffer, 0, MAX_BUFFER_SIZE);
+                    }
+                    // send the http request
+                    if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
                         perror("proxy send to server failed");
                         exit(EXIT_FAILURE);
                     }
-                // 从目标服务器接收HTTP响应并发送回客户端
-                memset(buffer, 0, MAX_BUFFER_SIZE);
+                    printf("%d\n", valread);
+                    // 从目标服务器接收HTTP响应并发送回客户端
+                    memset(buffer, 0, MAX_BUFFER_SIZE);
 
-                   time_t start_t, end_t;
-                int received = 0,recvbytes = 0;
-                double rate = 0;
-                while(1){
-                    time(&start_t);
-                    if((recvbytes = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0)) == -1) {//接收客户端的请求
-                        perror("receive failed");
-                        return -1;
-                    }
-                    time(&end_t);
-                    recvbytes /= 1000;
-                    double total_t = difftime(end_t,start_t);
-                    if(rate == 0){
-                        rate = recvbytes*8/(1000*total_t);
-                    }else{
-                        rate = alpha*(recvbytes*8/(1000*total_t)) + (1 - alpha) * rate;
-                    }
-                    
-                    printf("Thoughput=%.3f Mbps\n",rate);
+                    time_t start_t, end_t;
+                    int recvbytes = 0;
+                    double rate = 0;
+                    while (1) {
+                        time(&start_t);
+                        if ((recvbytes = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0)) == -1) {//接收客户端的请求
+                            perror("receive failed");
+                            return -1;
+                        }
+                        time(&end_t);
+                        recvbytes /= 1000; // KB
+                        double total_t = difftime(end_t, start_t);
+                        if (rate == 0) {
+                            rate = recvbytes * 8 / (1000 * total_t); // MB
+                        } else {
+                            rate = alpha * (recvbytes * 8 / (1000 * total_t)) + (1 - alpha) * rate;
+                        }
 
-                    if(recvbytes == 0){
-                        break;
-                    }
-                }
-                
-                
+                        printf("Thoughput=%.3f Mbps\n", rate);
 
-                if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+                        if (recvbytes == 0) {
+                            break;
+                        }
+                    }
+
+
+                    if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
                         perror("proxy send back to client failed");
                         exit(EXIT_FAILURE);
+                    }
                 }
-                
                 
 
             }
