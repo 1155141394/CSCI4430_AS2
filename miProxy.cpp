@@ -40,7 +40,7 @@ int main(int argc, char* argv[]){
     struct sockaddr_in server_addr, client_addr;
 
     // create proxy server socket
-    if((proxy_server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) < 0)){
+    if((proxy_server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         perror("socket creation failed");
         exit(1);
     }
