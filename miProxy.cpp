@@ -67,6 +67,23 @@ char* get_rest_request(char* request) {
     return request_rest;
 }
 
+void extract_bitrate(char* str, int bitrates[]) {
+    char* token = strtok(str, " ");
+    int indx = 0;
+    while (token != NULL) {
+        if (strstr(token, "bitrate=") != NULL) {
+            printf("%s\n", token);
+            char tmp[10] = {0};
+            for(int i = 9; i < strlen(token)-1; i++) {
+                tmp[i-9] = token[i];
+            }
+            bitrates[indx] = atoi(tmp);
+            indx += 1;
+        }
+        token = strtok(NULL, " ");
+    }
+}
+
 int main(int argc, char* argv[]){
     // read all the info from command line
     if(argc != 6){
