@@ -103,7 +103,7 @@ int main(int argc, char* argv[]){
     int client_sockets[MAX_CLIENTS], tps_cur[MAX_CLIENTS];
     fd_set readfds;
     struct sockaddr_in server_addr, client_addr;
-
+    int bitrates[50] = {0};
     // create proxy server socket
     if((proxy_server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         perror("socket creation failed");
@@ -201,12 +201,23 @@ int main(int argc, char* argv[]){
                     char version[100];
                     sscanf(request_line, "%s %s %s\r\n", method, url, version);
                     // make change to the http request
-                    if (strstr(url, "big_buck_bunny")) {
+                    if (strstr(url, "f4m")) {
                         // if f4m existed, make change to url and send two request to server
                         char* new_url = strcat(strtok(url ,"."), "_nolist.f4m");
                         char* new_request;
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
-
+                        // send f4m
+                        send(proxy_client_socket, buffer, strlen(buffer), 0)
+                        recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
+                        extract_bitrate(buffer, bitrates);
+                        memset(buffer, 0, MAX_BUFFER_SIZE);
+                        for(int i = 0; i < 4; i++){
+                            printf("%d\n", bitrates[i]);
+                        }
+                        // send no_list.f4m
+                        send(proxy_client_socket, new_request, strlen(new_request), 0);
+                        recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
+                        send(client_socket, buffer, strlen(buffer), 0);
                     }
                     else if (strstr(url, )) {
                         // if chunk request exists
