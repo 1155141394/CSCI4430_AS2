@@ -35,7 +35,7 @@ int main(int argc, char* argv[]){
     // create variables
     int proxy_server_socket, proxy_client_socket;
     int max_sd, sd, activity, valread;
-    int client_sockets[MAX_CLIENTS];
+    int client_sockets[MAX_CLIENTS], tps_cur[MAX_CLIENTS];
     fd_set readfds;
     struct sockaddr_in server_addr, client_addr;
 
@@ -74,9 +74,10 @@ int main(int argc, char* argv[]){
         exit(1);
     }
 
-    // initialize the client sockets
+    // initialize the client sockets and throughputs
     for(int i = 0; i < MAX_CLIENTS; i++){
         client_sockets[i] = 0;
+        tps_cur[i] = 0;
     }
 
     while(1){
@@ -84,24 +85,19 @@ int main(int argc, char* argv[]){
         FD_ZERO(&readfds);
         // add server socket to set
         FD_SET(proxy_server_socket, &readfds);
-        max_sd = proxy_server_socket;
         for(int i = 0; i < MAX_CLIENTS; i++) {
-            sd = client_sockets[i];
             // if there is client sd, add to set
             if (sd > 0) {
                 FD_SET(sd, &readfds);
             }
-            // update max sd
-            if (sd > max_sd) {
-                max_sd = sd;
-            }
         }
         // wait for the socket activity
-        activity = select(max_sd+1, &readfds, NULL, NULL, NULL);
+        activity = select(FD_SETSIZE, &readfds, NULL, NULL, NULL);
 
         // if something happened to server socket, accept the connection
         if(FD_ISSET(proxy_server_socket, &readfds)){
             int new_socket = connect(proxy_server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
+            printf("New connection, socket fd is %d, IP is : %s, port : %d\n", new_socket, inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
             // add the new socket to client set
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
@@ -121,9 +117,40 @@ int main(int argc, char* argv[]){
                 // somebody disconnect
                 close(client_socket);
                 client_sockets[i] = 0;
+                tps_cur[i] = 0;
             }
             else{
-                // process the http request
+                // parse the http request
+                char *request_lines = strtok(buffer, "\r\n");
+
+                // make change to the http request
+                if (){
+                    // if f4m existed, make change to url and send two request to server
+
+                }
+                else if (){
+                    // if chunk request exists
+                }
+                else {
+                    // direct the request to the server directly
+                    if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+                        perror("proxy send to server failed");
+                        exit(EXIT_FAILURE);
+                    }
+                    // receive data from server
+                    memset(buffer, 0, MAX_BUFFER_SIZE);
+                    if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
+                        perror("proxy receive chunks from server failed");
+                        exit(EXIT_FAILURE);
+                    }
+                    // direct the chunk to client
+                    if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+                        perror("proxy send to server failed");
+                        exit(EXIT_FAILURE);
+                    }
+                    memset(buffer, 0, MAX_BUFFER_SIZE);
+                }
+                // send the http request
                 if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
                         perror("proxy send to server failed");
                         exit(EXIT_FAILURE);
@@ -137,7 +164,7 @@ int main(int argc, char* argv[]){
                 while(1){
                     time(&start_t);
                     if((recvbytes = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0)) == -1) {//接收客户端的请求
-                        perror("recv");
+                        perror("receive failed");
                         return -1;
                     }
                     time(&end_t);
