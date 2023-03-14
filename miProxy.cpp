@@ -114,7 +114,7 @@ int main(int argc, char* argv[]){
         for (int i = 0; i < MAX_CLIENTS; i++){
             int client_socket = client_sockets[i];
             if (client_socket != 0 && FD_ISSET(client_socket, &readfds)){
-                valread = read(client_socket, buffer, MAX_BUFFER_SIZE);
+                valread = recv(client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
             }
             if (valread == 0){
                 // somebody disconnect
