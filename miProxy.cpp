@@ -53,10 +53,10 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     if(listen(proxy_server_socket, 10) < 0 ){
-        perror("listen failed");
+        perror("listen failed\n");
         exit(1);
     }
-
+    printf("Listen on port %d", listen_port);
     // create proxy client socket
     if((proxy_client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         perror("socket creation failed");
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]){
         perror("connection failed");
         exit(1);
     }
-
+    printf("Connect to Server.\n");
     // initialize the client sockets and throughputs
     for(int i = 0; i < MAX_CLIENTS; i++){
         client_sockets[i] = 0;
@@ -87,6 +87,7 @@ int main(int argc, char* argv[]){
         FD_SET(proxy_server_socket, &readfds);
         for(int i = 0; i < MAX_CLIENTS; i++) {
             // if there is client sd, add to set
+            sd = client_sockets[i];
             if (sd > 0) {
                 FD_SET(sd, &readfds);
             }
@@ -96,8 +97,13 @@ int main(int argc, char* argv[]){
 
         // if something happened to server socket, accept the connection
         if(FD_ISSET(proxy_server_socket, &readfds)){
-            int new_socket = connect(proxy_server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
+            int new_socket;
+            if ((new_socket = accept(proxy_server_socket, (struct sockaddr*)&server_addr, (socklen_t*)sizeof(server_addr))) < 0){
+                perror("accept error");
+                exit(EXIT_FAILURE);
+            }
             printf("New connection, socket fd is %d, IP is : %s, port : %d\n", new_socket, inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
+            ssize_t send_ret = send(new_socket, buffer, strlen(buffer), 0);
             // add the new socket to client set
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
@@ -120,36 +126,36 @@ int main(int argc, char* argv[]){
                 tps_cur[i] = 0;
             }
             else{
-                // parse the http request
-                char *request_lines = strtok(buffer, "\r\n");
-
-                // make change to the http request
-                if (){
-                    // if f4m existed, make change to url and send two request to server
-
-                }
-                else if (){
-                    // if chunk request exists
-                }
-                else {
-                    // direct the request to the server directly
-                    if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
-                        perror("proxy send to server failed");
-                        exit(EXIT_FAILURE);
-                    }
-                    // receive data from server
-                    memset(buffer, 0, MAX_BUFFER_SIZE);
-                    if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
-                        perror("proxy receive chunks from server failed");
-                        exit(EXIT_FAILURE);
-                    }
-                    // direct the chunk to client
-                    if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
-                        perror("proxy send to server failed");
-                        exit(EXIT_FAILURE);
-                    }
-                    memset(buffer, 0, MAX_BUFFER_SIZE);
-                }
+//                // parse the http request
+//                char *request_lines = strtok(buffer, "\r\n");
+//
+//                // make change to the http request
+//                if (){
+//                    // if f4m existed, make change to url and send two request to server
+//
+//                }
+//                else if (){
+//                    // if chunk request exists
+//                }
+//                else {
+//                    // direct the request to the server directly
+//                    if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+//                        perror("proxy send to server failed");
+//                        exit(EXIT_FAILURE);
+//                    }
+//                    // receive data from server
+//                    memset(buffer, 0, MAX_BUFFER_SIZE);
+//                    if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
+//                        perror("proxy receive chunks from server failed");
+//                        exit(EXIT_FAILURE);
+//                    }
+//                    // direct the chunk to client
+//                    if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+//                        perror("proxy send to server failed");
+//                        exit(EXIT_FAILURE);
+//                    }
+//                    memset(buffer, 0, MAX_BUFFER_SIZE);
+//                }
                 // send the http request
                 if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
                         perror("proxy send to server failed");
