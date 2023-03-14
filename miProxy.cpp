@@ -186,6 +186,9 @@ int main(int argc, char* argv[]){
                     // make change to the http request
                     if (strstr(url, "big_buck_bunny")) {
                         // if f4m existed, make change to url and send two request to server
+                        char* new_url = strcat(strtok(url ,"."), "_nolist.f4m");
+                        char* new_request;
+                        sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
 
                     }
                     else if (strstr(url, )) {
