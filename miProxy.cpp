@@ -325,7 +325,6 @@ int main(int argc, char* argv[]){
                         char* new_url = strcat(strtok(url ,"."), "_nolist.f4m");
                         char new_request[10000];
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
-                        printf("%s\n", new_request);
                         // send f4m
                         tran_request_without_sendback(buffer, f4m_file, sizeof(buffer), proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
@@ -337,7 +336,9 @@ int main(int argc, char* argv[]){
                         printf("%s\n", new_request);
                         tran_request(new_request, strlen(new_request), proxy_client_socket, proxy_server_socket, client_socket);
                     }
-//                    else if (strstr(url, )) {
+                    else if (strstr(url, "Seg")) {
+                        printf("%s\n", buffer);
+                        return 0;
 //                        // if chunk request exists
                             // send the http request
 //                            if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
@@ -379,7 +380,7 @@ int main(int argc, char* argv[]){
 //                                exit(EXIT_FAILURE);
 //                            }
         //
-//                    }
+                    }
                     else {
                         // direct the request to the server directly
                         tran_request(buffer, valread, proxy_client_socket, proxy_server_socket, client_socket);
