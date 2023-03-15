@@ -118,6 +118,10 @@ int get_resp_header_len(char* response){
     return indx;
 }
 
+int tran_request(char* buffer, int proxy_client_socket, int proxy_server_socket, int client_socket) {
+
+}
+
 int main(int argc, char* argv[]){
     // read all the info from command line
     if(argc != 6){
@@ -300,13 +304,13 @@ int main(int argc, char* argv[]){
 //                    }
                     else {
                         // direct the request to the server directly
-                        if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
+                        if (send(proxy_client_socket, buffer, valread, 0) < 0) {
                             perror("proxy send to server failed");
                             exit(EXIT_FAILURE);
                         }
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        if ((valread = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL)) < 0) {
+                        if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
@@ -320,17 +324,17 @@ int main(int argc, char* argv[]){
                         // get header length
                         resp_header_len = get_resp_header_len(buffer) + 1;
                         printf("Response header lenght: %d\n", resp_header_len);
-                        printf("Buffer lenght: %zu\n", strlen(buffer));
+                        printf("Buffer length: %zu\n", strlen(buffer));
                         // get remain content length
-                        resp_remain_len = cont_len - (strlen(buffer) - resp_header_len);
+                        resp_remain_len = cont_len - (valread - resp_header_len);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         printf("Response remain length: %d\n", resp_remain_len);
                         // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
-                            valread = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0;
+                            valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
                             printf("Receive bytes: %d\n", valread);
                             buffer[valread] = '\0';
-                            resp_remain_len -= strlen(buffer);
+                            resp_remain_len -= valread;
                             send(client_socket, buffer, valread, 0);
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             printf("Response remain length: %d\n", resp_remain_len);
