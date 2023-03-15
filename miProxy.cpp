@@ -21,6 +21,15 @@
 #define PORT 80
 #define MAX_REQUEST_LINE_LENGTH 1024
 
+
+void create_log_file(char *browser_ip, char *chunkname, char *server_ip, double duration, double tput, double avg_tput, int bitrate, char *log) {
+  FILE *fp;
+  fp = fopen(log, "w"); // "w"表示以写入模式打开文件
+  fprintf(fp, "%s %s %s %f %f %f %d\n", browser_ip, chunkname, server_ip, duration, tput, avg_tput, bitrate);
+  fclose(fp);
+}
+
+
 char* get_request_line(char* request) {
     char* end_of_request_line;
     static char request_line[MAX_REQUEST_LINE_LENGTH];
@@ -214,6 +223,7 @@ int main(int argc, char* argv[]){
     double alpha = atof(argv[4]);
     char* log_addr = argv[5];
     char buffer[MAX_BUFFER_SIZE] = {0};
+    char browser_ip[MAX_CLIENTS][50];
 
     // create variables
     int proxy_server_socket, proxy_client_socket;
@@ -257,6 +267,7 @@ int main(int argc, char* argv[]){
         perror("connection failed");
         exit(1);
     }
+
     printf("Connect to Server.\n");
     // initialize the client sockets and throughputs
     for(int i = 0; i < MAX_CLIENTS; i++){
@@ -288,12 +299,14 @@ int main(int argc, char* argv[]){
                 perror("accept error");
                 exit(EXIT_FAILURE);
             }
+            
             printf("New connection, socket fd is %d, IP is : %s, port : %d\n", new_socket, inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
             ssize_t send_ret = send(new_socket, buffer, strlen(buffer), 0);
             // add the new socket to client set
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
                     client_sockets[i] = new_socket;
+                    strcpy(browser_ip[i],inet_ntoa(server_addr.sin_addr));
                     break;
                 }
             }
@@ -331,19 +344,20 @@ int main(int argc, char* argv[]){
                         tran_request_without_sendback(buffer, f4m_file, valread, proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        tps_cur = bitrates[i] * 1.5;
+                        tps_cur[i] = bitrates[i] * 1.5;
                         // send no_list.f4m request to server and transfer all the chunks to browser.
                         printf("%s\n", new_request);
                         tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
                     }
                    else if (strstr(url, "Seg")) {
-                        int tsp_tmp = 0
-                        for(int k=0;k<50;i++){
+                        int tps_tmp = 0;
+                        for(int k=0;k<50;k++){
+                            printf("%d\n",bitrates[k]);
                             if(bitrates[k] == 0){
                                 break;
                             }
                             if(tps_cur[i]>=bitrates[k]*1.5){
-                                tsp_tmp = bitrates[k];
+                                tps_tmp = bitrates[k];
                                 continue;
                             }else{
                                 break;
@@ -359,7 +373,7 @@ int main(int argc, char* argv[]){
                                 front_len = k;
                                 break;
                             }else{
-                                font_url[k] = url[k];
+                                front_url[k] = url[k];
                             }
                         }
                         front_url[front_len] = '\0';
@@ -378,23 +392,24 @@ int main(int argc, char* argv[]){
                         back_len = strlen(url) - front_len -num_len;
                         back_url[back_len] = '\0';
 
-                        char num[50] = {0};
-                        itoa(tsp_tmp,num,10);
-                        char* new_url = strcat(front_url,num);
-                        printf("new url: %s\n",new_url);
-                        strcat(new_url,back_url);
+                        char new_num[50] = {0};
+                        snprintf(new_num, sizeof(new_num), "%d", tps_tmp);
+                        char* new_url = strcat(front_url,new_num);
+                        //printf("%s,%s,%s\n",front_url,new_num,back_url);
+                        new_url = strcat(new_url,back_url);
+                        // printf("new url: %s\n",new_url);
                         char new_request[10000];
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
 
                         int resp_header_len, resp_remain_len, cont_len;
                         // direct the request to the server directly
-                        if (send(proxy_client_socket, new_request, valread, 0) < 0) {
+                        if (send(proxy_client_socket, new_request, valread-num_len+strlen(new_num), 0) < 0) {
                             perror("proxy send to server failed");
                             exit(EXIT_FAILURE);
                         }
-                        time_t start_t, end_t;
+                        clock_t start_t, end_t;
                         int total_len = 0;
-                        time(&start_t);
+                        start_t = clock();
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
@@ -428,11 +443,15 @@ int main(int argc, char* argv[]){
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             printf("Response remain length: %d\n", resp_remain_len);
                         }
-                        time(&end_t);
-                        double total_t = difftime(end_t,start_t);
+                        end_t = clock();
+                        double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
                         double T_new = total_len*8/(1000*total_t);
-                        printf("Rate=%.3f Mbps\n",T_new);
-                        tsp_cur[i] = alpha * T_new + (1 - alpha) * tsp_cur[i];
+                        printf("Rate=%.3f Kbps\n",T_new);
+                        int bitrt = atoi(new_num);
+                        create_log_file(browser_ip[i],strcat(new_num,back_url),ip,total_t,tps_cur[i],alpha * T_new + (1 - alpha) * tps_cur[i],bitrt,log_addr);
+                        tps_cur[i] = alpha * T_new + (1 - alpha) * tps_cur[i];
+                        
+                        
                        
 
                    }
