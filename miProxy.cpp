@@ -380,7 +380,7 @@ int main(int argc, char* argv[]){
 //                                exit(EXIT_FAILURE);
 //                            }
         //
-                    }
+//                    }
                     else {
                         // direct the request to the server directly
                         tran_request(buffer, valread, proxy_client_socket, proxy_server_socket, client_socket);
