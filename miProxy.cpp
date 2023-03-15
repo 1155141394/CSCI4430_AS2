@@ -326,7 +326,7 @@ int main(int argc, char* argv[]){
                         char new_request[10000];
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
                         // send f4m
-                        tran_request_without_sendback(buffer, f4m_file, sizeof(buffer), proxy_client_socket, proxy_server_socket);
+                        tran_request_without_sendback(buffer, f4m_file, valread, proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         for(int i = 0; i < 4; i++){
@@ -334,7 +334,7 @@ int main(int argc, char* argv[]){
                         }
                         // send no_list.f4m request to server and transfer all the chunks to browser.
                         printf("%s\n", new_request);
-                        tran_request(new_request, strlen(new_request), proxy_client_socket, proxy_server_socket, client_socket);
+                        tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
                     }
                     else if (strstr(url, "Seg")) {
                         printf("%s\n", buffer);
