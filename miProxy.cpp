@@ -84,6 +84,40 @@ void extract_bitrate(char* str, int bitrates[]) {
     }
 }
 
+// get content length
+int get_con_len(char* response) {
+    int cont_len;
+    char resp[10000];
+    strcpy(resp,response);
+    char* token = strtok(resp, "\r\n");
+    char tmp[50] = {0};
+    while (token)
+    {
+        if (strstr(token, "Content-Length")) {
+            for(int i = 16; i < strlen(token); i++) {
+                tmp[i-16] = token[i];
+            }
+            cont_len = atoi(tmp);
+            break;
+        }
+        token = strtok(NULL, "\r\n");
+    }
+    return cont_len;
+
+}
+
+int get_resp_header_len(char* response){
+    char resp[10000];
+    strcpy(resp,response);
+    int indx;
+    for(int i = 3; i < strlen(resp); i++){
+        if(resp[i] == '\n' && resp[i-1] == '\r' && resp[i-2] == '\n' && resp[i-3] == '\r' ){
+            indx = i;
+        }
+    }
+    return indx;
+}
+
 int main(int argc, char* argv[]){
     // read all the info from command line
     if(argc != 6){
@@ -104,6 +138,7 @@ int main(int argc, char* argv[]){
     fd_set readfds;
     struct sockaddr_in server_addr, client_addr;
     int bitrates[50] = {0};
+    int resp_header_len, resp_remain_len, cont_len;
     // create proxy server socket
     if((proxy_server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         perror("socket creation failed");
@@ -270,17 +305,21 @@ int main(int argc, char* argv[]){
                         }
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        if (read(proxy_client_socket, buffer, MAX_BUFFER_SIZE) < 0) {
+                        if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        printf("%s, line=%d\n", buffer, 277);
-                        // direct the chunk to client
-                        if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
-                            perror("proxy send to server failed");
-                            exit(EXIT_FAILURE);
-                        }
+                        send(client_socket, buffer, strlen(buffer), 0)
+                        cont_len = get_con_len(buffer);
+                        resp_header_len = get_resp_header_len(buffer) + 1;
+                        resp_remain_len = strlen(buffer) - resp_remain_len;
                         memset(buffer, 0, MAX_BUFFER_SIZE);
+                        while(resp_remain_len > 0) {
+                            recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0;
+                            resp_remain_len -= strlen(buffer);
+                            send(client_socket, buffer, strlen(buffer), 0);
+                            memset(buffer, 0, MAX_BUFFER_SIZE);
+                        }
                     }
 
                 }
