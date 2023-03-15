@@ -306,13 +306,13 @@ int main(int argc, char* argv[]){
                         }
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        int recv_len = 0;
-                        if (recv_len = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
+                        if ((valread = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL)) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        buffer[recv_len] = '\0';
-                        send(client_socket, buffer, strlen(buffer), 0);
+                        printf("Receive bytes: %d\n", valread);
+                        buffer[valread] = '\0';
+                        send(client_socket, buffer, valread, 0);
 
                         // get content length
                         cont_len = get_con_len(buffer);
@@ -327,9 +327,11 @@ int main(int argc, char* argv[]){
                         printf("Response remain length: %d\n", resp_remain_len);
                         // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
-                            recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0;
+                            valread = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0;
+                            printf("Receive bytes: %d\n", valread);
+                            buffer[valread] = '\0';
                             resp_remain_len -= strlen(buffer);
-                            send(client_socket, buffer, strlen(buffer), 0);
+                            send(client_socket, buffer, valread, 0);
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             printf("Response remain length: %d\n", resp_remain_len);
                         }
