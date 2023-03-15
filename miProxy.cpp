@@ -336,9 +336,9 @@ int main(int argc, char* argv[]){
                         printf("%s\n", new_request);
                         tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
                     }
-                    else if (strstr(url, "Seg")) {
-                        printf("%s\n", buffer);
-                        return 0;
+//                    else if (strstr(url, "Seg")) {
+//                        printf("%s\n", buffer);
+//                        return 0;
 //                        // if chunk request exists
                             // send the http request
 //                            if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
