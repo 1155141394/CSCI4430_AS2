@@ -13,6 +13,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <ctype.h>
 
 
 #define MAX_CLIENTS 10
@@ -217,7 +218,8 @@ int main(int argc, char* argv[]){
     // create variables
     int proxy_server_socket, proxy_client_socket;
     int max_sd, sd, activity, valread;
-    int client_sockets[MAX_CLIENTS], tps_cur[MAX_CLIENTS];
+    int client_sockets[MAX_CLIENTS];
+    double tps_cur[MAX_CLIENTS];
     fd_set readfds;
     struct sockaddr_in server_addr, client_addr;
     int bitrates[50] = {0};
@@ -329,58 +331,111 @@ int main(int argc, char* argv[]){
                         tran_request_without_sendback(buffer, f4m_file, valread, proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        for(int i = 0; i < 4; i++){
-                            printf("Bit rates: %d\n", bitrates[i]);
-                        }
+                        tps_cur = bitrates[i] * 1.5;
                         // send no_list.f4m request to server and transfer all the chunks to browser.
                         printf("%s\n", new_request);
                         tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
                     }
-//                    else if (strstr(url, "Seg")) {
-//                        printf("%s\n", buffer);
-//                        return 0;
-//                        // if chunk request exists
-                            // send the http request
-//                            if (send(proxy_client_socket, buffer, strlen(buffer), 0) < 0) {
-//                                perror("proxy send to server failed");
-//                                exit(EXIT_FAILURE);
-//                            }
-//                            printf("%d\n", valread);
-//                            // 从目标服务器接收HTTP响应并发送回客户端
-//                            memset(buffer, 0, MAX_BUFFER_SIZE);
-//
-//                            time_t start_t, end_t;
-//                            int recvbytes = 0;
-//                            double rate = 0;
-//                            while (1) {
-//                                time(&start_t);
-//                                if ((recvbytes = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, 0)) == -1) {//接收客户端的请求
-//                                    perror("receive failed");
-//                                    return -1;
-//                                }
-//                                time(&end_t);
-//                                recvbytes /= 1000; // KB
-//                                double total_t = difftime(end_t, start_t);
-//                                if (rate == 0) {
-//                                    rate = recvbytes * 8 / (1000 * total_t); // MB
-//                                } else {
-//                                    rate = alpha * (recvbytes * 8 / (1000 * total_t)) + (1 - alpha) * rate;
-//                                }
-//
-//                                printf("Thoughput=%.3f Mbps\n", rate);
-//
-//                                if (recvbytes == 0) {
-//                                    break;
-//                                }
-//                            }
-//
+                   else if (strstr(url, "Seg")) {
+                        int tsp_tmp = 0
+                        for(int k=0;k<50;i++){
+                            if(bitrates[k] == 0){
+                                break;
+                            }
+                            if(tps_cur[i]>=bitrates[k]*1.5){
+                                tsp_tmp = bitrates[k];
+                                continue;
+                            }else{
+                                break;
+                            }
+                        }
 
-//                            if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
-//                                perror("proxy send back to client failed");
-//                                exit(EXIT_FAILURE);
-//                            }
-        //
-//                    }
+                        char front_url[50];
+                        char back_url[50];
+                        char num[50];
+                        int front_len = 0,back_len = 0, num_len = 0;
+                        for(int k=0;k<strlen(url);k++){
+                            if(isdigit(url[k])){
+                                front_len = k;
+                                break;
+                            }else{
+                                font_url[k] = url[k];
+                            }
+                        }
+                        front_url[front_len] = '\0';
+                        for(int k=front_len;k<strlen(url);k++){
+                            if(isdigit(url[k])){
+                                num[k-front_len] = url[k];
+                            }else{
+                                num_len = k-front_len;
+                                break;
+                            }
+                        }
+                        num[num_len] = '\0';
+                        for(int k = front_len+num_len;k<strlen(url);k++){
+                            back_url[k-front_len-num_len]=url[k];
+                        }
+                        back_len = strlen(url) - front_len -num_len;
+                        back_url[back_len] = '\0';
+
+                        char num[50] = {0};
+                        itoa(tsp_tmp,num,10);
+                        char* new_url = strcat(front_url,num);
+                        printf("new url: %s\n",new_url);
+                        strcat(new_url,back_url);
+                        char new_request[10000];
+                        sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
+
+                        int resp_header_len, resp_remain_len, cont_len;
+                        // direct the request to the server directly
+                        if (send(proxy_client_socket, new_request, valread, 0) < 0) {
+                            perror("proxy send to server failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        time_t start_t, end_t;
+                        int total_len = 0;
+                        time(&start_t);
+                        // receive data from server
+                        memset(buffer, 0, MAX_BUFFER_SIZE);
+                        if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
+                            perror("proxy receive chunks from server failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        total_len+=valread;
+                        printf("Receive bytes: %d\n", valread);
+                        buffer[valread] = '\0';
+                        send(client_socket, buffer, valread, 0);
+
+                        // get content length
+                        cont_len = get_con_len(buffer);
+                        printf("Content length: %d\n", cont_len);
+                        // get header length
+                        resp_header_len = get_resp_header_len(buffer) + 1;
+                        printf("Response header lenght: %d\n", resp_header_len);
+                        printf("Buffer length: %zu\n", strlen(buffer));
+                        // get remain content length
+                        resp_remain_len = cont_len - (valread - resp_header_len);
+                        memset(buffer, 0, MAX_BUFFER_SIZE);
+                        printf("Response remain length: %d\n", resp_remain_len);
+                        // receive from the server if there is still sth
+                        while(resp_remain_len > 0) {
+                            valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
+                            total_len+=valread;
+                            printf("Receive bytes: %d\n", valread);
+                            buffer[valread] = '\0';
+                            resp_remain_len -= valread;
+                            send(client_socket, buffer, valread, 0);
+                            memset(buffer, 0, MAX_BUFFER_SIZE);
+                            printf("Response remain length: %d\n", resp_remain_len);
+                        }
+                        time(&end_t);
+                        double total_t = difftime(end_t,start_t);
+                        double T_new = total_len*8/(1000*total_t);
+                        printf("Rate=%.3f Mbps\n",T_new);
+                        tsp_cur[i] = alpha * T_new + (1 - alpha) * tsp_cur[i];
+                       
+
+                   }
                     else {
                         // direct the request to the server directly
                         tran_request(buffer, valread, proxy_client_socket, proxy_server_socket, client_socket);
