@@ -193,6 +193,7 @@ int main(int argc, char* argv[]){
             }
         }
         // wait for the socket activity
+        printf("\n\nSelect start\n");
         activity = select(FD_SETSIZE, &readfds, NULL, NULL, NULL);
 
         // if something happened to server socket, accept the connection
@@ -309,16 +310,26 @@ int main(int argc, char* argv[]){
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        send(client_socket, buffer, strlen(buffer), 0)
+                        send(client_socket, buffer, strlen(buffer), 0);
+
+                        // get content length
                         cont_len = get_con_len(buffer);
+                        printf("Content length: %d\n", cont_len);
+                        // get header length
                         resp_header_len = get_resp_header_len(buffer) + 1;
-                        resp_remain_len = strlen(buffer) - resp_remain_len;
+                        printf("Response header lenght: %d\n", resp_header_len);
+                        printf("Buffer lenght: %zu\n", strlen(buffer));
+                        // get remain content length
+                        resp_remain_len = cont_len - (strlen(buffer) - resp_header_len);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
+                        printf("Response remain length: %d\n", resp_remain_len);
+                        // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
                             recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0;
                             resp_remain_len -= strlen(buffer);
                             send(client_socket, buffer, strlen(buffer), 0);
                             memset(buffer, 0, MAX_BUFFER_SIZE);
+                            printf("Response remain length: %d\n", resp_remain_len);
                         }
                     }
 
