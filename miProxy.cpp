@@ -72,7 +72,7 @@ void extract_bitrate(char* str, int bitrates[]) {
     int indx = 0;
     while (token != NULL) {
         if (strstr(token, "bitrate=") != NULL) {
-            printf("%s\n", token);
+//            printf("%s\n", token);
             char tmp[10] = {0};
             for(int i = 9; i < strlen(token)-1; i++) {
                 tmp[i-9] = token[i];
@@ -320,19 +320,21 @@ int main(int argc, char* argv[]){
                     sscanf(request_line, "%s %s %s\r\n", method, url, version);
                     // make change to the http request
                     if (strstr(url, "f4m")) {
-                        char f4m_file[30000] = {0};
+                        char f4m_file[10000] = {0};
                         // if f4m existed, make change to url and send two request to server
                         char* new_url = strcat(strtok(url ,"."), "_nolist.f4m");
-                        char* new_request;
+                        char new_request[10000];
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
+                        printf("%s\n", new_request);
                         // send f4m
                         tran_request_without_sendback(buffer, f4m_file, sizeof(buffer), proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         for(int i = 0; i < 4; i++){
-                            printf("%d\n", bitrates[i]);
+                            printf("Bit rates: %d\n", bitrates[i]);
                         }
                         // send no_list.f4m request to server and transfer all the chunks to browser.
+                        printf("%s\n", new_request);
                         tran_request(new_request, strlen(new_request), proxy_client_socket, proxy_server_socket, client_socket);
                     }
 //                    else if (strstr(url, )) {
