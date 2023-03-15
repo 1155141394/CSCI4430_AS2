@@ -306,10 +306,12 @@ int main(int argc, char* argv[]){
                         }
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        if (recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
+                        int recv_len = 0;
+                        if (recv_len = recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
+                        buffer[recv_len] = '\0';
                         send(client_socket, buffer, strlen(buffer), 0);
 
                         // get content length
