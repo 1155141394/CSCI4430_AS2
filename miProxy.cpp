@@ -159,6 +159,48 @@ int tran_request(char* buffer, int valread, int proxy_client_socket, int proxy_s
 
 }
 
+char* tran_request_without_sendback(char* buffer, char res[], int valread, int proxy_client_socket, int proxy_server_socket) {
+    int resp_header_len, resp_remain_len, cont_len;
+    // direct the request to the server directly
+    if (send(proxy_client_socket, buffer, valread, 0) < 0) {
+        perror("proxy send to server failed");
+        exit(EXIT_FAILURE);
+    }
+    // receive data from server
+    memset(buffer, 0, MAX_BUFFER_SIZE);
+    if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
+        perror("proxy receive chunks from server failed");
+        exit(EXIT_FAILURE);
+    }
+    printf("Receive bytes: %d\n", valread);
+    buffer[valread] = '\0';
+    // send(client_socket, buffer, valread, 0);
+    strcat(res, buffer);
+    // get content length
+    cont_len = get_con_len(buffer);
+    printf("Content length: %d\n", cont_len);
+    // get header length
+    resp_header_len = get_resp_header_len(buffer) + 1;
+    printf("Response header lenght: %d\n", resp_header_len);
+    printf("Buffer length: %zu\n", strlen(buffer));
+    // get remain content length
+    resp_remain_len = cont_len - (valread - resp_header_len);
+    memset(buffer, 0, MAX_BUFFER_SIZE);
+    printf("Response remain length: %d\n", resp_remain_len);
+    // receive from the server if there is still sth
+    while(resp_remain_len > 0) {
+        valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
+        printf("Receive bytes: %d\n", valread);
+        buffer[valread] = '\0';
+        resp_remain_len -= valread;
+        strcat(res, buffer);
+//        send(client_socket, buffer, valread, 0);
+        memset(buffer, 0, MAX_BUFFER_SIZE);
+        printf("Response remain length: %d\n", resp_remain_len);
+    }
+    return res;
+}
+
 int main(int argc, char* argv[]){
     // read all the info from command line
     if(argc != 6){
@@ -278,22 +320,20 @@ int main(int argc, char* argv[]){
                     sscanf(request_line, "%s %s %s\r\n", method, url, version);
                     // make change to the http request
                     if (strstr(url, "f4m")) {
+                        char f4m_file[30000] = {0};
                         // if f4m existed, make change to url and send two request to server
                         char* new_url = strcat(strtok(url ,"."), "_nolist.f4m");
                         char* new_request;
                         sprintf(new_request,"%s %s %s\r\n%s", method, new_url, version, request_rest);
                         // send f4m
-                        send(proxy_client_socket, buffer, strlen(buffer), 0);
-                        recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
-                        extract_bitrate(buffer, bitrates);
+                        tran_request_without_sendback(buffer, f4m_file, sizeof(buffer), proxy_client_socket, proxy_server_socket);
+                        extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         for(int i = 0; i < 4; i++){
                             printf("%d\n", bitrates[i]);
                         }
-                        // send no_list.f4m
-                        send(proxy_client_socket, new_request, strlen(new_request), 0);
-                        recv(proxy_client_socket, buffer, MAX_BUFFER_SIZE, MSG_NOSIGNAL);
-                        send(client_socket, buffer, strlen(buffer), 0);
+                        // send no_list.f4m request to server and transfer all the chunks to browser.
+                        tran_request(new_request, strlen(new_request), proxy_client_socket, proxy_server_socket, client_socket);
                     }
 //                    else if (strstr(url, )) {
 //                        // if chunk request exists
