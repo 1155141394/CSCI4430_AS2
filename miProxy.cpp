@@ -24,7 +24,7 @@
 
 void create_log_file(char *browser_ip, char *chunkname, char *server_ip, double duration, double tput, double avg_tput, int bitrate, char *log) {
   FILE *fp;
-  fp = fopen(log, "w"); // "w"表示以写入模式打开文件
+  fp = fopen(log, "a"); // "w"表示以写入模式打开文件
   fprintf(fp, "%s %s %s %f %f %f %d\n", browser_ip, chunkname, server_ip, duration, tput, avg_tput, bitrate);
   fclose(fp);
 }
@@ -344,15 +344,15 @@ int main(int argc, char* argv[]){
                         tran_request_without_sendback(buffer, f4m_file, valread, proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        tps_cur[i] = bitrates[i] * 1.5;
+                        tps_cur[i] = 0;
                         // send no_list.f4m request to server and transfer all the chunks to browser.
                         printf("%s\n", new_request);
                         tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
                     }
                    else if (strstr(url, "Seg")) {
-                        int tps_tmp = 0;
+                        int tps_tmp = bitrates[0];
                         for(int k=0;k<50;k++){
-                            printf("%d\n",bitrates[k]);
+                            //printf("%d\n",bitrates[k]);
                             if(bitrates[k] == 0){
                                 break;
                             }
@@ -394,6 +394,9 @@ int main(int argc, char* argv[]){
 
                         char new_num[50] = {0};
                         snprintf(new_num, sizeof(new_num), "%d", tps_tmp);
+                        char dep_num[50];
+                        strcpy(dep_num,new_num);
+                        int bitrt = atoi(new_num);
                         char* new_url = strcat(front_url,new_num);
                         //printf("%s,%s,%s\n",front_url,new_num,back_url);
                         new_url = strcat(new_url,back_url);
@@ -409,46 +412,47 @@ int main(int argc, char* argv[]){
                         }
                         clock_t start_t, end_t;
                         int total_len = 0;
-                        start_t = clock();
+                        
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
+                        start_t = clock();
                         total_len+=valread;
-                        printf("Receive bytes: %d\n", valread);
+                        //printf("Receive bytes: %d\n", valread);
                         buffer[valread] = '\0';
                         send(client_socket, buffer, valread, 0);
 
                         // get content length
                         cont_len = get_con_len(buffer);
-                        printf("Content length: %d\n", cont_len);
+                        //printf("Content length: %d\n", cont_len);
                         // get header length
                         resp_header_len = get_resp_header_len(buffer) + 1;
-                        printf("Response header lenght: %d\n", resp_header_len);
-                        printf("Buffer length: %zu\n", strlen(buffer));
+                        // printf("Response header lenght: %d\n", resp_header_len);
+                        // printf("Buffer length: %zu\n", strlen(buffer));
                         // get remain content length
                         resp_remain_len = cont_len - (valread - resp_header_len);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        printf("Response remain length: %d\n", resp_remain_len);
+                        //printf("Response remain length: %d\n", resp_remain_len);
                         // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
                             valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
                             total_len+=valread;
-                            printf("Receive bytes: %d\n", valread);
+                            //printf("Receive bytes: %d\n", valread);
                             buffer[valread] = '\0';
                             resp_remain_len -= valread;
                             send(client_socket, buffer, valread, 0);
                             memset(buffer, 0, MAX_BUFFER_SIZE);
-                            printf("Response remain length: %d\n", resp_remain_len);
+                            //printf("Response remain length: %d\n", resp_remain_len);
                         }
                         end_t = clock();
-                        double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+                        double total_t = (double)(end_t - start_t) / 1000;
                         double T_new = total_len*8/(1000*total_t);
-                        printf("Rate=%.3f Kbps\n",T_new);
-                        int bitrt = atoi(new_num);
-                        create_log_file(browser_ip[i],strcat(new_num,back_url),ip,total_t,tps_cur[i],alpha * T_new + (1 - alpha) * tps_cur[i],bitrt,log_addr);
+                        //printf("Rate=%.3f Kbps\n",T_new);
+                        
+                        create_log_file(browser_ip[i],strcat(new_num,back_url),ip,total_t,T_new,alpha * T_new + (1 - alpha) * tps_cur[i],bitrt,log_addr);
                         tps_cur[i] = alpha * T_new + (1 - alpha) * tps_cur[i];
                         
                         
