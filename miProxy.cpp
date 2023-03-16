@@ -410,16 +410,18 @@ int main(int argc, char* argv[]){
                             perror("proxy send to server failed");
                             exit(EXIT_FAILURE);
                         }
-                        clock_t start_t, end_t;
+                        time_t start_t;
                         int total_len = 0;
-                        
+                        double total_t = 0;
+                        start_t = clock();
                         // receive data from server
                         memset(buffer, 0, MAX_BUFFER_SIZE);
                         if ((valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE)) < 0) {
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        start_t = clock();
+                        total_t += (double)(clock() - start_t) / 1000;
+                        
                         total_len+=valread;
                         //printf("Receive bytes: %d\n", valread);
                         buffer[valread] = '\0';
@@ -438,7 +440,9 @@ int main(int argc, char* argv[]){
                         //printf("Response remain length: %d\n", resp_remain_len);
                         // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
+                            start_t = clock();
                             valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
+                            total_t += (double)(clock() - start_t) / 1000;
                             total_len+=valread;
                             //printf("Receive bytes: %d\n", valread);
                             buffer[valread] = '\0';
@@ -447,8 +451,6 @@ int main(int argc, char* argv[]){
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             //printf("Response remain length: %d\n", resp_remain_len);
                         }
-                        end_t = clock();
-                        double total_t = (double)(end_t - start_t) / 1000;
                         double T_new = total_len*8/(1000*total_t);
                         //printf("Rate=%.3f Kbps\n",T_new);
                         
