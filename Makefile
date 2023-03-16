@@ -9,7 +9,7 @@
 ###################
 ###################
 
-CXX = gcc
+CXX = g++
 # TODO For C++ only.
 CXXFLAGS = -g -std=c++11 -pedantic
 
