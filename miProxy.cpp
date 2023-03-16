@@ -17,7 +17,7 @@
 
 
 #define MAX_CLIENTS 10
-#define MAX_BUFFER_SIZE 10000
+#define MAX_BUFFER_SIZE 30000
 #define PORT 80
 #define MAX_REQUEST_LINE_LENGTH 1024
 
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]){
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        total_t += (double)(clock() - start_t) / 1000;
+                        //total_t += (double)(clock() - start_t) / CLOCKS_PER_SEC;
                         
                         total_len+=valread;
                         //printf("Receive bytes: %d\n", valread);
@@ -440,9 +440,9 @@ int main(int argc, char* argv[]){
                         //printf("Response remain length: %d\n", resp_remain_len);
                         // receive from the server if there is still sth
                         while(resp_remain_len > 0) {
-                            start_t = clock();
+                            //start_t = clock();
                             valread = read(proxy_client_socket, buffer, MAX_BUFFER_SIZE);
-                            total_t += (double)(clock() - start_t) / 1000;
+                            //total_t += (double)(clock() - start_t) / CLOCKS_PER_SEC;
                             total_len+=valread;
                             //printf("Receive bytes: %d\n", valread);
                             buffer[valread] = '\0';
@@ -451,6 +451,7 @@ int main(int argc, char* argv[]){
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             //printf("Response remain length: %d\n", resp_remain_len);
                         }
+                        total_t = (double)(clock() - start_t) / 10000;
                         double T_new = total_len*8/(1000*total_t);
                         //printf("Rate=%.3f Kbps\n",T_new);
                         
