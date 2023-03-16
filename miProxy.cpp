@@ -422,7 +422,6 @@ int main(int argc, char* argv[]){
                             perror("proxy receive chunks from server failed");
                             exit(EXIT_FAILURE);
                         }
-                        //total_t += (double)(clock() - start_t) / CLOCKS_PER_SEC;
                         
                         total_len+=valread;
                         //printf("Receive bytes: %d\n", valread);
@@ -453,7 +452,6 @@ int main(int argc, char* argv[]){
                             memset(buffer, 0, MAX_BUFFER_SIZE);
                             //printf("Response remain length: %d\n", resp_remain_len);
                         }
-                        //total_t = (double)(clock() - start_t) / 10000;
                         total_t = duration<double>(high_resolution_clock::now() - start).count();
                         double T_new = total_len*8/(1000*total_t);
                         //printf("Rate=%.3f Kbps\n",T_new);
