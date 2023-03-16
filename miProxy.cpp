@@ -347,7 +347,7 @@ int main(int argc, char* argv[]){
                         tran_request_without_sendback(buffer, f4m_file, valread, proxy_client_socket, proxy_server_socket);
                         extract_bitrate(f4m_file, bitrates);
                         memset(buffer, 0, MAX_BUFFER_SIZE);
-                        tps_cur[i] = 0;
+                        tps_cur[i] = bitrates[0];
                         // send no_list.f4m request to server and transfer all the chunks to browser.
                         //printf("%s\n", new_request);
                         tran_request(new_request, valread+7, proxy_client_socket, proxy_server_socket, client_socket);
